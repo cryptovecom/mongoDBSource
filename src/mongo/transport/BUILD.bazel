@@ -1,0 +1,266 @@
+load("//bazel:mongo_src_rules.bzl", "idl_generator", "mongo_cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(
+    glob([
+        "*.h",
+        "*.cpp",
+    ]),
+)
+
+mongo_cc_library(
+    name = "transport_layer_common",
+    srcs = [
+        "hello_metrics.cpp",
+        "session.cpp",
+        "transport_layer.cpp",
+    ],
+    hdrs = [
+        "hello_metrics.h",
+        "session.h",
+        "session_manager.h",
+        "transport_layer.h",
+    ],
+    deps = [
+        "//src/mongo:base",
+        "//src/mongo/db:connection_health_metrics_parameter",  # TODO(SERVER-93876): Remove.
+        "//src/mongo/db:service_context",
+        "//src/mongo/db:wire_version",  # TODO(SERVER-93876): Remove.
+        "//src/mongo/util/net:ssl_manager",  # TODO(SERVER-93876): Remove.
+    ],
+)
+
+mongo_cc_library(
+    name = "transport_layer_manager",
+    srcs = [
+        "transport_layer_manager_impl.cpp",
+    ],
+    hdrs = [
+        "transport_layer_manager_impl.h",
+    ],
+    deps = [
+        ":service_executor",
+        ":session_manager",
+        ":transport_layer",
+        "//src/mongo/db:server_base",
+        "//src/third_party/asio-master:asio",
+    ] + select({
+        "//bazel/config:build_grpc_enabled": [
+            "//src/mongo/transport/grpc:grpc_transport_layer",
+        ],
+        "//conditions:default": [],
+    }),
+)
+
+idl_generator(
+    name = "transport_options_gen",
+    src = "transport_options.idl",
+)
+
+mongo_cc_library(
+    name = "transport_layer",
+    srcs = [
+        "proxy_protocol_header_parser.cpp",
+        ":transport_options_gen",
+        "//src/mongo/transport/asio:asio_session_impl.cpp",
+        "//src/mongo/transport/asio:asio_session_manager.cpp",
+        "//src/mongo/transport/asio:asio_tcp_fast_open.cpp",
+        "//src/mongo/transport/asio:asio_transport_layer.cpp",
+        "//src/mongo/transport/asio:asio_utils.cpp",
+        "//src/mongo/util:strong_weak_finish_line.h",
+    ] + select({
+        "@platforms//os:linux": [
+            "//src/mongo/transport/asio:asio_networking_baton.cpp",
+        ],
+        "//conditions:default": [],
+    }),
+    hdrs = [
+        "proxy_protocol_header_parser.h",
+        "//src/mongo/transport/asio:asio_networking_baton.h",
+        "//src/mongo/transport/asio:asio_session.h",
+        "//src/mongo/transport/asio:asio_session_impl.h",
+        "//src/mongo/transport/asio:asio_session_manager.h",
+        "//src/mongo/transport/asio:asio_tcp_fast_open.h",
+        "//src/mongo/transport/asio:asio_transport_layer.h",
+        "//src/mongo/transport/asio:asio_utils.h",
+    ],
+    deps = [
+        ":service_executor",  # TODO(SERVER-93876): Remove.
+        ":session_manager",
+        ":session_util",
+        ":transport_layer_common",  # TODO(SERVER-93876): Remove.
+        "//src/mongo/base:system_error",
+        "//src/mongo/db:server_base",  # TODO(SERVER-93876): Remove.
+        "//src/mongo/db:server_feature_flags",  # TODO(SERVER-93876): Remove.
+        "//src/mongo/db:service_context",  # TODO(SERVER-93876): Remove.
+        "//src/mongo/db/commands:server_status_core",  # TODO(SERVER-93876): Remove.
+        "//src/mongo/db/stats:counters",  # TODO(SERVER-93876): Remove.
+        "//src/mongo/s:common_s",  # TODO(SERVER-93876): Remove.
+        "//src/mongo/util:executor_stats",
+        "//src/mongo/util/concurrency:spin_lock",  # TODO(SERVER-93876): Remove.
+        "//src/mongo/util/net:ssl_manager",  # TODO(SERVER-93876): Remove.
+        "//src/mongo/util/options_parser",  # TODO(SERVER-93876): Remove.
+        "//src/third_party/asio-master:asio",
+    ],
+)
+
+idl_generator(
+    name = "service_executor_gen",
+    src = "service_executor.idl",
+)
+
+mongo_cc_library(
+    name = "service_executor",
+    srcs = [
+        "service_executor.cpp",
+        "service_executor_reserved.cpp",
+        "service_executor_synchronous.cpp",
+        "service_executor_utils.cpp",
+        ":service_executor_gen",
+    ],
+    hdrs = [
+        "service_executor.h",
+        "service_executor_reserved.h",
+        "service_executor_synchronous.h",
+        "service_executor_utils.h",
+    ],
+    deps = [
+        ":transport_layer_common",
+        "//src/mongo/db:server_base",
+        "//src/mongo/db:service_context",  # TODO(SERVER-93876): Remove.
+        "//src/mongo/util:processinfo",  # TODO(SERVER-93876): Remove.
+        "//src/mongo/util/concurrency:thread_pool",  # TODO(SERVER-93876): Remove.
+        "//src/third_party/asio-master:asio",  # TODO(SERVER-93876): Remove.
+    ],
+)
+
+idl_generator(
+    name = "session_manager_common_gen",
+    src = "session_manager_common.idl",
+)
+
+mongo_cc_library(
+    name = "message_compressor",
+    srcs = [
+        "message_compressor_manager.cpp",
+        "message_compressor_metrics.cpp",
+        "message_compressor_registry.cpp",
+        "message_compressor_snappy.cpp",
+        "message_compressor_zlib.cpp",
+        "message_compressor_zstd.cpp",
+    ],
+    hdrs = [
+        "message_compressor_base.h",
+        "message_compressor_manager.h",
+        "message_compressor_noop.h",
+        "message_compressor_registry.h",
+        "message_compressor_snappy.h",
+        "message_compressor_zlib.h",
+        "message_compressor_zstd.h",
+    ],
+    deps = [
+        "//src/mongo:base",
+        "//src/mongo/util/options_parser",
+        "//src/third_party/snappy",
+        "//src/third_party/zlib",  # TODO(SERVER-93876): Remove.
+        "//src/third_party/zstandard:zstd",
+    ],
+)
+
+idl_generator(
+    name = "message_compressor_options_client_gen",
+    src = "message_compressor_options_client.idl",
+)
+
+idl_generator(
+    name = "message_compressor_options_server_gen",
+    src = "message_compressor_options_server.idl",
+)
+
+mongo_cc_library(
+    name = "session_util",
+    srcs = [
+        "session_util.cpp",
+    ],
+    hdrs = [
+        "session_util.h",
+    ],
+    deps = [
+        "//src/mongo:base",
+        "//src/mongo/util/net:network",
+    ],
+)
+
+mongo_cc_library(
+    name = "ingress_handshake_metrics",
+    srcs = [
+        "ingress_handshake_metrics.cpp",
+    ],
+    hdrs = [
+        "ingress_handshake_metrics.h",
+    ],
+    deps = [
+        "transport_layer_common",
+        "//src/mongo:base",
+        "//src/mongo/db:commands",
+        "//src/mongo/db:server_feature_flags",
+        "//src/mongo/db/commands:server_status_core",
+        "//src/mongo/util:clock_sources",
+    ],
+)
+
+mongo_cc_library(
+    name = "message_compressor_options_client",
+    srcs = [
+        ":message_compressor_options_client_gen",
+    ],
+    deps = [
+        ":message_compressor",
+        "//src/mongo:base",
+    ],
+)
+
+mongo_cc_library(
+    name = "message_compressor_options_server",
+    srcs = [
+        ":message_compressor_options_server_gen",
+    ],
+    deps = [
+        ":message_compressor",
+        "//src/mongo:base",
+    ],
+)
+
+mongo_cc_library(
+    name = "session_manager",
+    srcs = [
+        "session_manager_common.cpp",
+        "session_workflow.cpp",
+        ":session_manager_common_gen",
+    ],
+    hdrs = [
+        "client_transport_observer.h",
+        "session_manager_common.h",
+        "session_workflow.h",
+        "//src/mongo/executor:split_timer.h",
+    ],
+    deps = [
+        ":ingress_handshake_metrics",
+        ":message_compressor",
+        ":service_executor",
+        ":transport_layer_common",
+        "//src/mongo/db:server_base",
+        "//src/mongo/db:server_feature_flags",
+        "//src/mongo/db:service_context",
+        "//src/mongo/db:traffic_recorder",
+        "//src/mongo/db/query:command_request_response",
+        "//src/mongo/db/stats:counters",
+        "//src/mongo/rpc:client_metadata",
+        "//src/mongo/rpc:message",
+        "//src/mongo/util:fail_point",
+        "//src/mongo/util:processinfo",
+        "//src/mongo/util/concurrency:spin_lock",
+        "//src/mongo/util/net:ssl_manager",
+    ],
+)

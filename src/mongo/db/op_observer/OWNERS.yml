@@ -1,0 +1,14 @@
+version: 1.0.0
+filters:
+  - "user_write_block_mode*":
+    approvers:
+      - 10gen/server-security
+  - "batched_write*":
+    approvers:
+      - 10gen/server-storage-execution
+  - "op_observer_impl*":
+    approvers:
+      - 10gen/server-replication
+  - "fcv_op_observer*":
+    approvers:
+      - 10gen/server-replication

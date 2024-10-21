@@ -1,0 +1,13 @@
+Import("env")
+
+env = env.Clone()
+
+env.CppUnitTest(
+    target="cost_based_ranker_test",
+    source=[
+        "estimates_test.cpp",
+    ],
+    LIBDEPS=[
+        "estimates",
+    ],
+)

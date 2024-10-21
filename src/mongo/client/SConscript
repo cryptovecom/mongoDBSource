@@ -1,0 +1,230 @@
+# -*- mode: python -*-
+
+Import("env")
+Import("get_option")
+Import("wiredtiger")
+
+env = env.Clone()
+
+env.SConscript(
+    must_exist=1,
+    dirs=["sdam"],
+    exports=["env"],
+)
+
+
+def shouldBuildGRPC(myEnv):
+    return myEnv.TargetOSIs("linux") and myEnv["ENABLE_GRPC_BUILD"]
+
+
+if env["MONGO_BUILD_SASL_CLIENT"]:
+    # Client-side SASL source necessary for mongo shell.
+    # Includes Cyrus SASL, OIDC, PLAIN, and AWS (if TLS support is on)
+    # support. Depends on sasl_client_native.
+    cyrusSaslClientEnv = env.Clone()
+
+    saslLibs = ["sasl2"]
+    if env.TargetOSIs("windows"):
+        saslLibs.extend(["secur32"])
+
+    cyrusSaslClientEnv.Library(
+        target="cyrus_sasl_client",
+        source=[
+            "cyrus_sasl_client_session.cpp",
+            "sasl_sspi.cpp",
+            "sasl_sspi_options.cpp",
+            "sasl_sspi_options_gen.cpp",
+        ],
+        LIBDEPS=[
+            "native_sasl_client",
+        ],
+        SYSLIBDEPS=saslLibs,
+        LIBDEPS_TAGS=[
+            "lint-allow-nonprivate-on-deps-dependents",
+            "lint-allow-bidirectional-edges",
+        ],
+    )
+
+clientDriverEnv = env.Clone()
+clientDriverEnv.InjectThirdParty("asio")
+if shouldBuildGRPC(env):
+    clientDriverEnv.InjectThirdParty(libraries=["grpc"])
+
+env.Library(
+    target="remote_command_targeter_mock",
+    source=[
+        "remote_command_targeter_mock.cpp",
+        "remote_command_targeter_factory_mock.cpp",
+    ],
+    LIBDEPS_PRIVATE=[
+        "$BUILD_DIR/mongo/db/server_base",
+        "$BUILD_DIR/mongo/util/net/network",
+    ],
+)
+
+env.Library(
+    target="replica_set_monitor_test_helper",
+    source=[
+        "streamable_replica_set_monitor_for_testing.cpp",
+    ],
+    LIBDEPS=[
+        "$BUILD_DIR/mongo/client/clientdriver_network",
+        "$BUILD_DIR/mongo/client/sdam/sdam_test_util",
+        "$BUILD_DIR/mongo/util/net/network",
+    ],
+)
+
+if wiredtiger:
+    env.CppUnitTest(
+        target="client_test",
+        source=[
+            "async_remote_command_targeter_adapter_test.cpp",
+            "authenticate_test.cpp",
+            "connection_string_test.cpp",
+            "dbclient_cursor_test.cpp",
+            "fetcher_test.cpp",
+            "index_spec_test.cpp",
+            "mongo_uri_test.cpp",
+            "read_preference_test.cpp",
+            "remote_command_retry_scheduler_test.cpp",
+            "replica_set_monitor_server_parameters_test.cpp",
+            "server_discovery_monitor_expedited_test.cpp",
+            "server_discovery_monitor_test.cpp",
+            "server_ping_monitor_test.cpp",
+            "streamable_replica_set_monitor_error_handler_test.cpp",
+            "streamable_replica_set_monitor_discovery_time_processor_test.cpp",
+        ],
+        LIBDEPS=[
+            "$BUILD_DIR/mongo/client/sdam/sdam",
+            "$BUILD_DIR/mongo/client/sdam/sdam_test_util",
+            "$BUILD_DIR/mongo/db/auth/authmocks",
+            "$BUILD_DIR/mongo/db/server_base",
+            "$BUILD_DIR/mongo/db/service_context_test_fixture",
+            "$BUILD_DIR/mongo/dbtests/mocklib",
+            "$BUILD_DIR/mongo/executor/network_interface_mock",
+            "$BUILD_DIR/mongo/executor/task_executor_test_fixture",
+            "$BUILD_DIR/mongo/executor/thread_pool_task_executor_test_fixture",
+            "$BUILD_DIR/mongo/rpc/command_status",
+            "$BUILD_DIR/mongo/transport/transport_layer_common",
+            "$BUILD_DIR/mongo/transport/transport_layer_egress_init",
+            "$BUILD_DIR/mongo/unittest/task_executor_proxy",
+            "$BUILD_DIR/mongo/util/md5",
+            "$BUILD_DIR/mongo/util/net/network",
+            "authentication",
+            "clientdriver_minimal",
+            "clientdriver_network",
+            "connection_string",
+            "fetcher",
+            "read_preference",
+            "remote_command_retry_scheduler",
+            "remote_command_targeter_mock",
+            "replica_set_monitor_protocol_test_util",
+        ],
+    )
+
+env.CppIntegrationTest(
+    target="replica_set_monitor_integration_test",
+    source=[
+        "replica_set_monitor_integration_test.cpp",
+    ],
+    LIBDEPS=[
+        "$BUILD_DIR/mongo/client/clientdriver_network",
+        "$BUILD_DIR/mongo/db/wire_version",
+        "$BUILD_DIR/mongo/executor/network_interface_factory",
+        "$BUILD_DIR/mongo/executor/network_interface_thread_pool",
+        "$BUILD_DIR/mongo/executor/thread_pool_task_executor",
+        "$BUILD_DIR/mongo/transport/transport_layer_egress_init",
+        "$BUILD_DIR/mongo/util/concurrency/thread_pool",
+        "$BUILD_DIR/mongo/util/version_impl",
+    ],
+)
+
+env.Library(
+    target="replica_set_monitor_protocol_test_util",
+    source=[
+        "replica_set_monitor_protocol_test_util.cpp",
+    ],
+    LIBDEPS=[
+        "clientdriver_network",
+    ],
+)
+
+env.CppUnitTest(
+    target="client_rs_test",
+    source=[
+        "dbclient_rs_test.cpp",
+    ],
+    LIBDEPS=[
+        "$BUILD_DIR/mongo/dbtests/mocklib",
+        "$BUILD_DIR/mongo/util/clock_source_mock",
+        "clientdriver_network",
+        "replica_set_monitor_test_helper",
+    ],
+)
+if shouldBuildGRPC(env):
+    clientDriverEnv.CppUnitTest(
+        target="dbclient_grpc_stream_test",
+        source=[
+            "dbclient_grpc_stream_test.cpp",
+        ],
+        LIBDEPS=[
+            "$BUILD_DIR/mongo/db/service_context_non_d",
+            "$BUILD_DIR/mongo/db/service_context_test_fixture",
+            "$BUILD_DIR/mongo/transport/grpc/grpc_transport_mock",
+            "$BUILD_DIR/mongo/util/version_impl",
+            "clientdriver_network",
+        ],
+    )
+
+env.CppUnitTest(
+    target="scoped_db_connection_pool_test",
+    source=["scoped_db_connection_test.cpp"],
+    LIBDEPS=[
+        "$BUILD_DIR/mongo/dbtests/mocklib",
+        "clientdriver_network",
+    ],
+)
+
+env.CppUnitTest(
+    target="dbclient_connection_test",
+    source=[
+        "dbclient_connection_test.cpp",
+    ],
+    LIBDEPS=[
+        "$BUILD_DIR/mongo/util/version_impl",
+        "clientdriver_network",
+    ],
+)
+
+# The following two tests cannot be combined because the second one
+# needs to be filtered out for the repl and sharding variants of the
+# integration tests.
+env.CppIntegrationTest(
+    target="client_connpool_integration_test",
+    source=[
+        "connpool_integration_test.cpp",
+    ],
+    LIBDEPS=[
+        "$BUILD_DIR/mongo/transport/transport_layer_egress_init",
+        "$BUILD_DIR/mongo/util/version_impl",
+        "clientdriver_network",
+    ],
+)
+
+env.CppIntegrationTest(
+    target="client_dbclient_connection_integration_test",
+    source=[
+        "dbclient_connection_integration_test.cpp",
+    ],
+    LIBDEPS=[
+        "$BUILD_DIR/mongo/transport/transport_layer_egress_init",
+        "$BUILD_DIR/mongo/util/version_impl",
+        "clientdriver_network",
+    ],
+)
+
+env.Library(
+    target="dbclient_mockcursor",
+    source=["dbclient_mockcursor.cpp"],
+    LIBDEPS_PRIVATE=["clientdriver_minimal"],
+)

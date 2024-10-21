@@ -1,0 +1,18 @@
+# Give build system 3rd party controls to the build team
+# This might become something we give to the owners of the third party modules eventually
+# During the bazel conversion this makes sense to be the build team
+version: 1.0.0
+filters:
+  - "*":
+    approvers:
+      - 10gen/server-security
+  - "SConscript":
+    approvers:
+      - 10gen/devprod-build
+  - "*.bazel":
+    approvers:
+      - 10gen/devprod-build
+  - "mozjs":
+    approvers:
+      - 10gen/query-integration-javascript
+      - 10gen/server-security

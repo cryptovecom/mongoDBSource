@@ -1,0 +1,90 @@
+version: 1.0.0
+filters:
+  - "authentication_commands.*":
+    approvers:
+      - 10gen/server-security
+  - "cluster_server_parameter_cmds.idl":
+    approvers:
+      - 10gen/server-security
+  - "connection_status.*":
+    approvers:
+      - 10gen/server-security
+  - "create_indexes*":
+    approvers:
+      - 10gen/server-storage-execution
+  - "fle2_*":
+    approvers:
+      - 10gen/server-security
+  - "fsync*":
+    approvers:
+      - 10gen/server-storage-execution
+  - "user_management_commands*":
+    approvers:
+      - 10gen/server-security
+  - "search_*":
+    approvers:
+      - 10gen/query-integration-search
+  - "validate.cpp":
+    approvers:
+      - 10gen/server-storage-execution
+      - 10gen/server-rss-sydney
+  - "vote*index_build*":
+    approvers:
+      - 10gen/server-storage-execution
+  - "rotate_certificates*":
+    approvers:
+      - 10gen/server-security
+  - "create*":
+    approvers:
+      - 10gen/server-catalog-and-routing
+  - "list*":
+    approvers:
+      - 10gen/server-catalog-and-routing
+  - "rename*":
+    approvers:
+      - 10gen/server-catalog-and-routing
+  - "set_cluster*":
+    approvers:
+      - 10gen/server-catalog-and-routing
+  - "profile*":
+    approvers:
+      - 10gen/query-integration-observability
+  - "set_profiling_filter_globally_cmd*":
+    approvers:
+      - 10gen/query-integration-observability
+  - "top_command.cpp":
+    approvers:
+      - 10gen/query-integration-observability
+  - "dbcheck*":
+    approvers:
+      - 10gen/server-replication
+  - "feature_compatibility*":
+    approvers:
+      - 10gen/server-replication
+  - "oplog*":
+    approvers:
+      - 10gen/server-replication
+  - "*cluster*parameter*":
+    approvers:
+      - 10gen/server-catalog-and-routing
+  - "drop_index*":
+    approvers:
+      - 10gen/server-catalog-and-routing
+  - "internal_rename*":
+    approvers:
+      - 10gen/server-catalog-and-routing
+  - "lock_info*":
+    approvers:
+      - 10gen/server-catalog-and-routing
+  - "notify_sharding_event*":
+    approvers:
+      - 10gen/server-catalog-and-routing
+  - "rwc_defaults*":
+    approvers:
+      - 10gen/server-catalog-and-routing
+  - "set_user_write_block_mode*":
+    approvers:
+      - 10gen/server-catalog-and-routing
+  - "validate_db_metadata*":
+    approvers:
+      - 10gen/server-catalog-and-routing

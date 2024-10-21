@@ -1,0 +1,46 @@
+load("//bazel:mongo_src_rules.bzl", "idl_generator", "mongo_cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(
+    glob([
+        "*.h",
+        "*.cpp",
+    ]),
+)
+
+idl_generator(
+    name = "serverless_types_gen",
+    src = "serverless_types.idl",
+    deps = [
+        "//src/mongo/db:basic_types_gen",
+    ],
+)
+
+mongo_cc_library(
+    name = "serverless_types_idl",
+    srcs = [
+        ":serverless_types_gen",
+    ],
+    deps = [
+        "//src/mongo/db:server_base",
+    ],
+)
+
+mongo_cc_library(
+    name = "serverless_lock",
+    srcs = [
+        "serverless_operation_lock_registry.cpp",
+        "serverless_server_status.cpp",
+        "//src/mongo/db:persistent_task_store.h",
+    ],
+    hdrs = [
+        "serverless_operation_lock_registry.h",
+    ],
+    deps = [
+        "//src/mongo/db:dbdirectclient",
+        "//src/mongo/db:server_base",
+        "//src/mongo/db/repl:tenant_migration_state_machine_idl",
+        "//src/mongo/db/repl:tenant_migration_utils",
+    ],
+)
