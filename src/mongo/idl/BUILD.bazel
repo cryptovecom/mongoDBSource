@@ -1,0 +1,242 @@
+load("//bazel:mongo_src_rules.bzl", "idl_generator", "mongo_cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(
+    glob([
+        "*.h",
+        "*.cpp",
+    ]),
+)
+
+idl_generator(
+    name = "cluster_server_parameter_gen",
+    src = "cluster_server_parameter.idl",
+    deps = [
+        "//src/mongo/db:basic_types_gen",
+    ],
+)
+
+mongo_cc_library(
+    name = "cluster_server_parameter",
+    srcs = [
+        "cluster_server_parameter_gen",
+    ],
+    deps = [
+        "//src/mongo/db:server_base",
+    ],
+)
+
+idl_generator(
+    name = "generic_argument_gen",
+    src = "generic_argument.idl",
+    deps = [
+        "//src/mongo/client:hedging_mode_gen",
+        "//src/mongo/client:read_preference_gen",
+        "//src/mongo/client:read_preference_setting_gen",
+        "//src/mongo/db:basic_types_gen",
+        "//src/mongo/db:vector_clock_gen",
+        "//src/mongo/db:write_concern_options_gen",
+        "//src/mongo/db/repl:read_concern_args_gen",
+        "//src/mongo/db/repl:read_concern_gen",
+        "//src/mongo/db/session:logical_session_id_gen",
+        "//src/mongo/rpc/metadata:impersonated_user_metadata_gen",
+        "//src/mongo/s:gossiped_routing_cache_gen",
+        "//src/mongo/s:sharding_types_gen",
+    ],
+)
+
+idl_generator(
+    name = "cluster_server_parameter_refresher_gen",
+    src = "cluster_server_parameter_refresher.idl",
+    deps = [
+        "//src/mongo/db:basic_types_gen",
+    ],
+)
+
+idl_generator(
+    name = "cluster_server_parameter_test_gen",
+    src = "cluster_server_parameter_test.idl",
+    deps = [
+        ":cluster_server_parameter_gen",
+        "//src/mongo/db:basic_types_gen",
+    ],
+)
+
+idl_generator(
+    name = "config_option_no_init_test_gen",
+    src = "config_option_no_init_test.idl",
+)
+
+mongo_cc_library(
+    name = "cluster_server_parameter_server_status",
+    srcs = [
+        "cluster_server_parameter_server_status.cpp",
+        "cluster_server_parameter_server_status.h",
+    ],
+    deps = [
+        "//src/mongo/bson:bson_validate",
+        "//src/mongo/db:server_base",
+    ],
+)
+
+idl_generator(
+    name = "config_option_test_gen",
+    src = "config_option_test.idl",
+)
+
+idl_generator(
+    name = "server_parameter_specialized_test_gen",
+    src = "server_parameter_specialized_test.idl",
+)
+
+idl_generator(
+    name = "server_parameter_with_storage_test_structs_gen",
+    src = "server_parameter_with_storage_test_structs.idl",
+    deps = [
+        ":cluster_server_parameter_gen",
+        "//src/mongo/db:basic_types_gen",
+    ],
+)
+
+idl_generator(
+    name = "server_parameter_with_storage_test_gen",
+    src = "server_parameter_with_storage_test.idl",
+    deps = [
+        ":server_parameter_with_storage_test_structs_gen",
+        "//src/mongo/db:basic_types_gen",
+    ],
+)
+
+idl_generator(
+    name = "unittest_import_gen",
+    src = "unittest_import.idl",
+    deps = [
+        "//src/mongo/db:basic_types_gen",
+    ],
+)
+
+idl_generator(
+    name = "unittest_gen",
+    src = "unittest.idl",
+    deps = [
+        ":generic_argument_gen",
+        ":unittest_import_gen",
+        "//src/mongo/db:basic_types_gen",
+        "//src/mongo/db/auth:access_checks_gen",
+        "//src/mongo/db/auth:action_type_gen",
+    ],
+)
+
+idl_generator(
+    name = "idl_parser_bm_gen",
+    src = "idl_parser_bm.idl",
+    deps = [
+        "//src/mongo/db:basic_types_gen",
+    ],
+)
+
+mongo_cc_library(
+    name = "idl_parser",
+    srcs = [
+        "idl_parser.cpp",
+    ],
+    hdrs = [
+        "idl_parser.h",
+    ],
+    header_deps = [
+        "//src/mongo/db/auth:cluster_auth_mode",
+        "//src/mongo/db/concurrency:flow_control_ticketholder",
+        "//src/mongo/db/exec/sbe:query_sbe_plan_stats",
+        "//src/mongo/db/fts:fts_query_noop",
+    ],
+    deps = [
+        "//src/mongo:base",
+    ],
+)
+
+mongo_cc_library(
+    name = "cluster_parameter_synchronization_helpers",
+    srcs = [
+        "cluster_parameter_synchronization_helpers.cpp",
+    ],
+    hdrs = [
+        "cluster_parameter_synchronization_helpers.h",
+    ],
+    deps = [
+        "//src/mongo/db:audit",
+        "//src/mongo/db:server_base",
+        "//src/mongo/db:shard_role",
+        "//src/mongo/db/catalog:collection_catalog",
+    ],
+)
+
+mongo_cc_library(
+    name = "cluster_server_parameter_initializer",
+    srcs = [
+        "cluster_server_parameter_initializer.cpp",
+    ],
+    hdrs = [
+        "cluster_server_parameter_initializer.h",
+    ],
+    deps = [
+        ":cluster_parameter_synchronization_helpers",
+        "//src/mongo/db:server_base",
+        "//src/mongo/db:shard_role",
+        "//src/mongo/db/catalog:collection_catalog",
+        "//src/mongo/db/repl:replica_set_aware_service",
+    ],
+)
+
+mongo_cc_library(
+    name = "cluster_server_parameter_op_observer",
+    srcs = [
+        "cluster_server_parameter_op_observer.cpp",
+    ],
+    hdrs = [
+        "cluster_server_parameter_op_observer.h",
+    ],
+    deps = [
+        ":cluster_parameter_synchronization_helpers",
+        ":cluster_server_parameter_initializer",
+        "//src/mongo/db:dbdirectclient",
+        "//src/mongo/db:server_base",
+        "//src/mongo/db:shard_role",
+        "//src/mongo/db/op_observer",
+    ],
+)
+
+mongo_cc_library(
+    name = "cluster_server_parameter_common",
+    srcs = [
+        "cluster_server_parameter_common.cpp",
+    ],
+    hdrs = [
+        "cluster_server_parameter_common.h",
+    ],
+    deps = [
+        "//src/mongo:base",
+        "//src/mongo/db/commands:list_databases_for_all_tenants_command",
+        "//src/mongo/s:grid",
+    ],
+)
+
+mongo_cc_library(
+    name = "cluster_server_parameter_refresher",
+    srcs = [
+        "cluster_server_parameter_refresher.cpp",
+        ":cluster_server_parameter_refresher_gen",
+    ],
+    hdrs = [
+        "cluster_server_parameter_refresher.h",
+    ],
+    deps = [
+        ":cluster_server_parameter",
+        ":cluster_server_parameter_common",
+        "//src/mongo/db:audit",
+        "//src/mongo/db:server_base",
+        "//src/mongo/db/transaction:transaction_api",
+        "//src/mongo/executor:inline_executor",
+        "//src/mongo/s:grid",
+    ],
+)

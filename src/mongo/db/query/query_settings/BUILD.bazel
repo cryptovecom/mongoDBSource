@@ -1,0 +1,93 @@
+load("//bazel:mongo_src_rules.bzl", "idl_generator", "mongo_cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(
+    glob([
+        "*.h",
+        "*.cpp",
+    ]),
+)
+
+idl_generator(
+    name = "query_settings_gen",
+    src = "query_settings.idl",
+    deps = [
+        "//src/mongo/db:basic_types_gen",
+        "//src/mongo/db:namespace_spec_gen",
+        "//src/mongo/db/query:index_hint_gen",
+        "//src/mongo/db/query:query_knobs_gen",
+        "//src/mongo/db/query/query_shape:query_shape_hash_gen",
+    ],
+)
+
+mongo_cc_library(
+    name = "query_settings",
+    srcs = [
+        "index_hints_serialization.cpp",
+        "query_framework_serialization.cpp",
+        "query_settings_comment.cpp",
+        ":query_settings_gen",
+    ],
+    hdrs = [
+        "index_hints_serialization.h",
+        "query_framework_serialization.h",
+    ],
+    deps = [
+        "//src/mongo/db:namespace_spec",
+        "//src/mongo/db:server_base",
+        "//src/mongo/db/query:index_hint",
+        "//src/mongo/db/query:query_knobs",  # TODO(SERVER-93876): Remove.
+        "//src/mongo/db/query/query_shape:query_shape_hash",  # TODO(SERVER-93876): Remove.
+    ],
+)
+
+idl_generator(
+    name = "query_settings_cluster_parameter_gen",
+    src = "query_settings_cluster_parameter.idl",
+    deps = [
+        "//src/mongo/db:basic_types_gen",
+        "//src/mongo/db/query:query_feature_flags_gen",
+        "//src/mongo/db/query/query_settings:query_settings_gen",
+        "//src/mongo/idl:cluster_server_parameter_gen",
+    ],
+)
+
+mongo_cc_library(
+    name = "manager",
+    srcs = [
+        "query_settings_manager.cpp",
+        ":query_settings_cluster_parameter_gen",
+    ],
+    hdrs = [
+        "query_settings_manager.h",
+    ],
+    deps = [
+        ":query_settings",
+        "//src/mongo/crypto:sha256_block",  # TODO(SERVER-93876): Remove.
+        "//src/mongo/db:server_base",
+        "//src/mongo/db:service_context",  # TODO(SERVER-93876): Remove.
+        "//src/mongo/db/commands:server_status_core",
+        "//src/mongo/db/concurrency:exception_util",  # TODO(SERVER-93876): Remove.
+        "//src/mongo/db/concurrency:lock_manager",
+        "//src/mongo/db/query:query_knobs",  # TODO(SERVER-93876): Remove.
+        "//src/mongo/idl:cluster_server_parameter",  # TODO(SERVER-93876): Remove.
+    ],
+)
+
+mongo_cc_library(
+    name = "utils",
+    srcs = [
+        "query_settings_hash.cpp",
+        "query_settings_utils.cpp",
+    ],
+    hdrs = [
+        "query_settings_hash.h",
+        "query_settings_utils.h",
+    ],
+    deps = [
+        ":manager",
+        "//src/mongo/db/query:canonical_query",
+        "//src/mongo/db/query/query_shape",
+    ],
+)

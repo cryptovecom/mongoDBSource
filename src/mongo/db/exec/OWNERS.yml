@@ -1,0 +1,35 @@
+version: 1.0.0
+filters:
+  - "*":
+    approvers:
+      - 10gen/query-execution
+  - "*timeseries*":
+    approvers:
+      - 10gen/query-integration-timeseries
+  - "text_*":
+    approvers:
+      - 10gen/query-integration-staff-leads
+  - "geo_*":
+    approvers:
+      - 10gen/query-integration-geo
+  - "cached_plan*":
+    approvers:
+      - 10gen/query-optimization
+  - "multi_plan*":
+    approvers:
+      - 10gen/query-optimization
+  - "subplan*":
+    approvers:
+      - 10gen/query-optimization
+  - "plan_cache_util*":
+    approvers:
+      - 10gen/query-optimization
+  - "trial_period_utils*":
+    approvers:
+      - 10gen/query-optimization
+  - "trial_run_tracker.h":
+    approvers:
+      - 10gen/query-optimization
+  - "trial_stage*":
+    approvers:
+      - 10gen/query-optimization

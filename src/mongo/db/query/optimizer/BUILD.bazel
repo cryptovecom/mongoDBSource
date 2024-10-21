@@ -1,0 +1,74 @@
+load("//bazel:mongo_src_rules.bzl", "mongo_cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(
+    glob([
+        "*.h",
+        "*.cpp",
+    ]),
+)
+
+# Core definitions: ABT, Logical and physical properties, Metadata, and core
+# utilities.
+mongo_cc_library(
+    name = "optimizer_base",
+    srcs = [
+        "defs.cpp",
+        "explain.cpp",
+        "node.cpp",
+        "reference_tracker.cpp",
+        "//src/mongo/db/query/optimizer/syntax:expr.cpp",
+        "//src/mongo/db/query/optimizer/utils:abt_compare.cpp",
+        "//src/mongo/db/query/optimizer/utils:abt_hash.cpp",
+        "//src/mongo/db/query/optimizer/utils:ce_math.cpp",
+        "//src/mongo/db/query/optimizer/utils:reftracker_utils.cpp",
+        "//src/mongo/db/query/optimizer/utils:utils.cpp",
+    ],
+    hdrs = [
+        "defs.h",
+        "explain.h",
+        "node.h",
+        "reference_tracker.h",
+        "//src/mongo/db/query/optimizer:comparison_op.h",
+        "//src/mongo/db/query/optimizer:containers.h",
+        "//src/mongo/db/query/optimizer:explain_interface.h",
+        "//src/mongo/db/query/optimizer:node_defs.h",
+        "//src/mongo/db/query/optimizer/syntax:expr.h",
+        "//src/mongo/db/query/optimizer/syntax:path.h",
+        "//src/mongo/db/query/optimizer/syntax:syntax.h",
+        "//src/mongo/db/query/optimizer/syntax:syntax_fwd_declare.h",
+        "//src/mongo/db/query/optimizer/utils:abt_compare.h",
+        "//src/mongo/db/query/optimizer/utils:abt_hash.h",
+        "//src/mongo/db/query/optimizer/utils:ce_math.h",
+        "//src/mongo/db/query/optimizer/utils:const_fold_interface.h",
+        "//src/mongo/db/query/optimizer/utils:physical_plan_builder.h",
+        "//src/mongo/db/query/optimizer/utils:reftracker_utils.h",
+        "//src/mongo/db/query/optimizer/utils:strong_alias.h",
+        "//src/mongo/db/query/optimizer/utils:utils.h",
+    ],
+    deps = [
+        # We should only depend on SBE for value representation and basic
+        # arithmetic for constant folding.
+        "//src/mongo/db/exec/sbe:query_sbe_makeobj_spec",
+        "//src/mongo/db:sbe_values",  # TODO(SERVER-93876): Remove.
+    ],
+)
+
+# Rewrites which manipulate the ABT directly.
+mongo_cc_library(
+    name = "optimizer_rewrites",
+    srcs = [
+        "//src/mongo/db/query/optimizer/rewrites:const_eval.cpp",
+        "//src/mongo/db/query/optimizer/rewrites:normalize_projections.cpp",
+        "//src/mongo/db/query/optimizer/rewrites:path.cpp",
+    ],
+    hdrs = [
+        "//src/mongo/db/query/optimizer/rewrites:const_eval.h",
+        "//src/mongo/db/query/optimizer/rewrites:normalize_projections.h",
+        "//src/mongo/db/query/optimizer/rewrites:path.h",
+    ],
+    deps = [
+        ":optimizer_base",
+    ],
+)

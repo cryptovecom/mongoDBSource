@@ -1,0 +1,419 @@
+# -*- mode: python -*-
+
+Import(
+    [
+        "env",
+        "get_option",
+        "have_sasl_lib",
+        "http_client",
+        "version_extra",
+        "version_parts",
+    ]
+)
+
+env = env.Clone()
+
+env.SConscript(
+    must_exist=1,
+    dirs=[
+        "catalog",
+        "client",
+        "commands",
+        "query",
+    ],
+    exports=[
+        "env",
+    ],
+)
+
+
+def shouldBuildGRPC(myEnv):
+    return myEnv.TargetOSIs("linux") and myEnv["ENABLE_GRPC_BUILD"]
+
+
+env.Library(
+    target="mongos_initializers",
+    source=[
+        "cluster_cursor_stats.cpp",
+    ],
+    LIBDEPS_PRIVATE=[
+        # NOTE: If you need to add a static or mongo initializer to mongos startup,
+        # please add that library here, as a private library dependency.
+        "$BUILD_DIR/mongo/db/audit",
+        "$BUILD_DIR/mongo/db/auth/authserver",
+        "$BUILD_DIR/mongo/db/commands/server_status_core",
+        "$BUILD_DIR/mongo/db/commands/server_status_servers",
+        "$BUILD_DIR/mongo/db/dbdirectclient",
+        "$BUILD_DIR/mongo/db/default_max_time_ms_cluster_parameter",
+        "$BUILD_DIR/mongo/db/logical_time_metadata_hook",
+        "$BUILD_DIR/mongo/db/modules/enterprise/kmip_configuration"
+        if "MONGO_ENTERPRISE_FEATURES" in env
+        and (
+            "encryptdb" in env["MONGO_ENTERPRISE_FEATURES"]
+            or "audit" in env["MONGO_ENTERPRISE_FEATURES"]
+        )
+        else "",
+        "$BUILD_DIR/mongo/db/modules/enterprise/src/audit/audit_configuration"
+        if "audit" in env.get("MONGO_ENTERPRISE_FEATURES", [])
+        else "",
+        "$BUILD_DIR/mongo/db/modules/enterprise/src/audit/audit_mongos"
+        if "audit" in env.get("MONGO_ENTERPRISE_FEATURES", [])
+        else "",
+        "$BUILD_DIR/mongo/db/modules/enterprise/src/encryptdb/log_redact_options"
+        if "encryptdb" in env.get("MONGO_ENTERPRISE_FEATURES", [])
+        else "",
+        "$BUILD_DIR/mongo/db/modules/enterprise/src/fips/fips_mode_server"
+        if "fips" in env.get("MONGO_ENTERPRISE_FEATURES", [])
+        else "",
+        "$BUILD_DIR/mongo/db/modules/enterprise/src/ldap/ldap_health_observer"
+        if "ldap" in env.get("MONGO_ENTERPRISE_FEATURES", [])
+        else "",
+        "$BUILD_DIR/mongo/db/modules/enterprise/src/ldap/ldap_manager_init"
+        if "ldap" in env.get("MONGO_ENTERPRISE_FEATURES", [])
+        else "",
+        "$BUILD_DIR/mongo/db/modules/enterprise/src/sasl/auth_delay"
+        if "sasl" in env.get("MONGO_ENTERPRISE_FEATURES", []) and have_sasl_lib
+        else "",
+        "$BUILD_DIR/mongo/db/modules/enterprise/src/sasl/authz_manager_factory_enterprise"
+        if "sasl" in env.get("MONGO_ENTERPRISE_FEATURES", []) and have_sasl_lib
+        else "",
+        "$BUILD_DIR/mongo/db/modules/enterprise/src/sasl/mongosaslservercommon"
+        if "sasl" in env.get("MONGO_ENTERPRISE_FEATURES", []) and have_sasl_lib
+        else "",
+        "$BUILD_DIR/mongo/db/pipeline/process_interface/mongos_process_interface_factory",
+        "$BUILD_DIR/mongo/db/process_health/config_server_health_observer",
+        "$BUILD_DIR/mongo/db/process_health/fault_manager",
+        "$BUILD_DIR/mongo/db/query/plan_executor",
+        "$BUILD_DIR/mongo/db/query/query_stats/query_stats",
+        "$BUILD_DIR/mongo/db/read_write_concern_defaults",
+        "$BUILD_DIR/mongo/db/server_options",
+        "$BUILD_DIR/mongo/db/server_options_base",
+        "$BUILD_DIR/mongo/db/service_context_non_d",
+        "$BUILD_DIR/mongo/db/session/session_catalog",
+        "$BUILD_DIR/mongo/db/startup_warnings_common",
+        "$BUILD_DIR/mongo/db/stats/counters",
+        "$BUILD_DIR/mongo/db/stats/latency_server_stats",
+        "$BUILD_DIR/mongo/db/vector_clock",
+        "$BUILD_DIR/mongo/db/windows_options" if env.TargetOSIs("windows") else [],
+        "$BUILD_DIR/mongo/executor/async_rpc_error_info",
+        "$BUILD_DIR/mongo/idl/cluster_server_parameter_server_status",
+        "$BUILD_DIR/mongo/transport/grpc/grpc_transport_server_options"
+        if shouldBuildGRPC(env)
+        else [],
+        "$BUILD_DIR/mongo/transport/message_compressor_options_server",
+        "$BUILD_DIR/mongo/transport/session_manager",
+        "$BUILD_DIR/mongo/transport/transport_layer_manager",
+        "$BUILD_DIR/mongo/util/clock_sources",
+        "$BUILD_DIR/mongo/util/fail_point",
+        "$BUILD_DIR/mongo/util/net/http_client_impl",
+        "$BUILD_DIR/mongo/util/net/ssl_options_server" if get_option("ssl") == "on" else "",
+        "$BUILD_DIR/mongo/util/ntservice",
+        "$BUILD_DIR/mongo/util/options_parser/options_parser",
+        "$BUILD_DIR/mongo/util/options_parser/options_parser_init",
+        "$BUILD_DIR/mongo/util/tcmalloc_set_parameter"
+        if env["MONGO_ALLOCATOR"] in ["tcmalloc-google", "tcmalloc-gperf"]
+        else "",
+        "$BUILD_DIR/mongo/util/testing_options",
+        "$BUILD_DIR/mongo/util/tracing_profiler/tracing_profiler"
+        if get_option("use-tracing-profiler") == "on"
+        else [],
+        "$BUILD_DIR/mongo/util/version_impl",
+        "commands/cluster_commands",
+        "commands/cluster_commands_common",
+        "commands/sharded_cluster_commands",
+        "commands/sharded_cluster_sharding_commands",
+        "mongos_server_parameters",
+        "mongos_topology_coordinator",
+        "query/exec/cluster_cursor_cleanup_job",
+        "sharding_initialization",
+        "sharding_router_api",
+    ],
+    LIBDEPS=[
+        # NOTE: This list must remain empty. Please only add to LIBDEPS_PRIVATE
+    ],
+)
+
+
+def abc():
+    import pdb
+
+    pdb.set_trace()
+    return False
+
+
+env.Library(
+    target="mongos_main",
+    source=[
+        "read_write_concern_defaults_cache_lookup_mongos.cpp",
+        "mongos_main.cpp",
+        "mongos_options.cpp",
+        "mongos_options_init.cpp",
+        "mongos_options_gen.cpp",
+        "version_mongos.cpp",
+    ],
+    LIBDEPS_PRIVATE=[
+        # NOTE: Do not add new libdeps (public or private) here unless
+        # required by the linker to satisfy symbol dependencies from
+        # the files listed above in `sources`. If you need to add a
+        # library to inject a static or mongo initializer to mongos,
+        # please add that library as a private libdep of
+        # mongos_initializers.
+        "$BUILD_DIR/mongo/client/remote_command_targeter",
+        "$BUILD_DIR/mongo/db/audit",
+        "$BUILD_DIR/mongo/db/auth/authserver",
+        "$BUILD_DIR/mongo/db/change_stream_options_manager",
+        "$BUILD_DIR/mongo/db/change_streams_cluster_parameter",
+        "$BUILD_DIR/mongo/db/commands/profile_common",
+        "$BUILD_DIR/mongo/db/commands/rwc_defaults_commands",
+        "$BUILD_DIR/mongo/db/exec/scoped_timer",
+        "$BUILD_DIR/mongo/db/ftdc/ftdc_mongos",
+        "$BUILD_DIR/mongo/db/modules/enterprise/src/audit/audit_enterprise"
+        if "audit" in env.get("MONGO_ENTERPRISE_FEATURES", [])
+        else "",
+        "$BUILD_DIR/mongo/db/process_health/fault_manager",
+        "$BUILD_DIR/mongo/db/query/query_settings/manager",
+        "$BUILD_DIR/mongo/db/read_write_concern_defaults",
+        "$BUILD_DIR/mongo/db/serverinit",
+        "$BUILD_DIR/mongo/db/session/kill_sessions_remote",
+        "$BUILD_DIR/mongo/db/session/logical_session_cache_impl",
+        "$BUILD_DIR/mongo/db/session/session_catalog",
+        "$BUILD_DIR/mongo/db/startup_warnings_common",
+        "$BUILD_DIR/mongo/idl/cluster_server_parameter_refresher",
+        "$BUILD_DIR/mongo/transport/ingress_handshake_metrics",
+        "$BUILD_DIR/mongo/transport/service_executor",
+        "$BUILD_DIR/mongo/transport/session_manager",
+        "$BUILD_DIR/mongo/transport/transport_layer_manager",
+        "$BUILD_DIR/mongo/util/allocator_thread",
+        "$BUILD_DIR/mongo/util/periodic_runner_factory",
+        "$BUILD_DIR/mongo/util/signal_handlers",
+        "$BUILD_DIR/mongo/util/tracing_profiler/tracing_profiler"
+        if get_option("use-tracing-profiler") == "on"
+        else [],
+        "client/sharding_client",
+        "commands/cluster_commands",
+        "commands/cluster_commands_common",
+        "load_balancer_support",
+        "mongos_initializers",
+        "mongos_topology_coordinator",
+        "query/exec/cluster_cursor_cleanup_job",
+        "resource_yielders",
+        "sessions_collection_sharded",
+        "sharding_initialization",
+        "sharding_router_api",
+        "startup_initialization",
+    ],
+    LIBDEPS=[
+        # NOTE: This list must remain empty. Please only add to LIBDEPS_PRIVATE
+    ],
+)
+
+if env.TargetOSIs("windows"):
+    generatedServerManifest = env.Substfile(
+        "mongos.manifest.in",
+        SUBST_DICT=[
+            ("@mongo_version_major@", version_parts[0]),
+            ("@mongo_version_minor@", version_parts[1]),
+            ("@mongo_version_patch@", version_parts[2]),
+            ("@mongo_version_extra@", version_parts[3]),
+            ("@mongo_version_extra_str@", version_extra),
+        ],
+    )
+
+    env.Alias("generated-sources", generatedServerManifest)
+    env.Depends("mongos.res", generatedServerManifest)
+
+env.Program(
+    target="mongos",
+    source=[
+        "mongos.cpp",
+    ]
+    + env.WindowsResourceFile("mongos.rc"),
+    LIBDEPS=[
+        # NOTE: Do not add new libdeps (public or private) here unless
+        # required by the linker to satisfy symbol dependencies from
+        # the files listed above in `sources`. If you need to add a
+        # library to inject a static or mongo initializer to mongos,
+        # please add that library as a private libdep of
+        # mongos_initializers.
+        "$BUILD_DIR/mongo/db/server_base",
+        "mongos_main",
+    ],
+    AIB_COMPONENT="mongos",
+    AIB_COMPONENTS_EXTRA=[
+        "core",
+        "default",
+        "devcore",
+        "dist",
+        "dist-test",
+        "integration-tests",
+        "servers",
+    ],
+)
+
+env.Library(
+    target="sharding_test_fixture_common",
+    source=[
+        "sharding_test_fixture_common.cpp",
+        "catalog_cache_loader_mock.cpp",
+        "catalog_cache_mock.cpp",
+    ],
+    LIBDEPS=[
+        "$BUILD_DIR/mongo/client/remote_command_targeter_mock",
+        "$BUILD_DIR/mongo/db/service_context_test_fixture",
+        "$BUILD_DIR/mongo/executor/network_interface_mock",
+        "$BUILD_DIR/mongo/executor/network_test_env",
+        "$BUILD_DIR/mongo/executor/thread_pool_task_executor_test_fixture",
+        "grid",
+        "write_ops/batch_write_types",
+    ],
+    LIBDEPS_PRIVATE=[
+        "$BUILD_DIR/mongo/db/concurrency/lock_manager",
+        "$BUILD_DIR/mongo/db/transaction/transaction",
+        "resource_yielders",
+        "sharding_router_api",
+    ],
+)
+
+env.Library(
+    target="sharding_mongos_test_fixture",
+    source=[
+        "catalog_cache_test_fixture.cpp",
+        "sharding_mongos_test_fixture.cpp",
+    ],
+    LIBDEPS=[
+        "$BUILD_DIR/mongo/db/query/collation/collator_factory_mock",
+        "$BUILD_DIR/mongo/executor/task_executor_pool",
+        "$BUILD_DIR/mongo/transport/transport_layer_mock",
+        "$BUILD_DIR/mongo/util/clock_source_mock",
+        "catalog/sharding_catalog_client_impl",
+        "sharding_router_api",
+        "sharding_task_executor",
+        "sharding_test_fixture_common",
+    ],
+    LIBDEPS_PRIVATE=[
+        "$BUILD_DIR/mongo/db/transaction/transaction",
+        "sharding_initialization",
+    ],
+)
+
+env.CppUnitTest(
+    target="multi_statement_transaction_requests_sender_test",
+    source=[
+        "multi_statement_transaction_requests_sender_test.cpp",
+    ],
+    LIBDEPS=[
+        "$BUILD_DIR/mongo/db/s/shard_server_test_fixture",
+        "$BUILD_DIR/mongo/db/session/session_catalog_mongod",
+        "commands/cluster_commands",
+        "sharding_api",
+        "sharding_mongos_test_fixture",
+    ],
+)
+
+env.CppUnitTest(
+    target="s_test",
+    source=[
+        "append_raw_responses_test.cpp",
+        "async_requests_sender_test.cpp",
+        "async_rpc_shard_targeter_test.cpp",
+        "balancer_configuration_test.cpp",
+        "catalog/sharding_catalog_client_read_preference_test.cpp",
+        "catalog/sharding_catalog_client_test.cpp",
+        "catalog/sharding_catalog_write_retry_test.cpp",
+        "catalog/type_changelog_test.cpp",
+        "catalog/type_chunk_test.cpp",
+        "catalog/type_collection_test.cpp",
+        "catalog/type_config_version_test.cpp",
+        "catalog/type_database_test.cpp",
+        "catalog/type_mongos_test.cpp",
+        "catalog/type_shard_test.cpp",
+        "catalog/type_tags_test.cpp",
+        "catalog_cache_refresh_test.cpp",
+        "catalog_cache_test.cpp",
+        "chunks_test_util.cpp",
+        "chunk_manager_query_test.cpp",
+        "chunk_map_test.cpp",
+        "chunk_test.cpp",
+        "chunk_version_test.cpp",
+        "client/config_shard_wrapper_test.cpp",
+        "client/shard_registry_test.cpp",
+        "client/shard_remote_test.cpp",
+        "cluster_identity_loader_test.cpp",
+        "collection_routing_info_targeter_test.cpp",
+        "comparable_chunk_version_test.cpp",
+        "comparable_database_version_test.cpp",
+        "comparable_index_version_test.cpp",
+        "sharding_index_catalog_cache_test.cpp",
+        "load_balancer_support_test.cpp",
+        "mock_ns_targeter.cpp",
+        "mongos_topology_coordinator_test.cpp",
+        "query_analysis_sample_tracker_test.cpp",
+        "query_analysis_sampler_test.cpp",
+        "request_types/add_shard_request_test.cpp",
+        "request_types/add_shard_to_zone_request_test.cpp",
+        "request_types/merge_chunks_request_test.cpp",
+        "request_types/migration_secondary_throttle_options_test.cpp",
+        "request_types/remove_shard_from_zone_request_test.cpp",
+        "request_types/update_zone_key_range_request_test.cpp",
+        "router_role_test.cpp",
+        "routing_table_cache_gossip_metadata_hook_test.cpp",
+        "routing_table_history_test.cpp",
+        "sessions_collection_sharded_test.cpp",
+        "shard_key_pattern_query_util_index_bounds_test.cpp",
+        "shard_key_pattern_test.cpp",
+        "shard_version_test.cpp",
+        "sharding_task_executor_test.cpp",
+        "stale_exception_test.cpp",
+        "stale_shard_version_helpers_test.cpp",
+        "transaction_router_test.cpp",
+        "write_ops/batch_write_exec_test.cpp",
+        "write_ops/batch_write_op_test.cpp",
+        "write_ops/batched_command_request_test.cpp",
+        "write_ops/batched_command_response_test.cpp",
+        "write_ops/bulk_write_command_modifier_test.cpp",
+        "write_ops/bulk_write_exec_test.cpp",
+        "write_ops/write_op_test.cpp",
+        "write_ops/write_without_shard_key_util_test.cpp",
+    ],
+    LIBDEPS=[
+        "$BUILD_DIR/mongo/db/auth/authmocks",
+        "$BUILD_DIR/mongo/db/mongohasher",
+        "$BUILD_DIR/mongo/db/pipeline/process_interface/mongos_process_interface_factory",
+        "$BUILD_DIR/mongo/db/query/query_test_service_context",
+        "$BUILD_DIR/mongo/db/query/write_ops/parsed_update",
+        "$BUILD_DIR/mongo/db/query/write_ops/write_ops_parsers_test_helpers",
+        "$BUILD_DIR/mongo/db/repl/replmocks",
+        "$BUILD_DIR/mongo/db/service_context_non_d",
+        "$BUILD_DIR/mongo/db/timeseries/timeseries_conversion_util",
+        "$BUILD_DIR/mongo/db/timeseries/timeseries_options",
+        "$BUILD_DIR/mongo/db/vector_clock",
+        "$BUILD_DIR/mongo/executor/async_rpc",
+        "$BUILD_DIR/mongo/idl/cluster_server_parameter",
+        "$BUILD_DIR/mongo/util/net/network",
+        "$BUILD_DIR/mongo/util/periodic_runner_factory",
+        "catalog/sharding_catalog_client_mock",
+        "commands/cluster_commands",
+        "commands/cluster_commands_common",
+        "load_balancer_support",
+        "mongos_topology_coordinator",
+        "sessions_collection_sharded",
+        "sharding_api",
+        "sharding_initialization",
+        "sharding_mongos_test_fixture",
+        "sharding_task_executor",
+    ],
+)
+
+env.Benchmark(
+    target="service_entry_point_router_role_bm",
+    source=[
+        "service_entry_point_router_role_bm.cpp",
+    ],
+    LIBDEPS=[
+        "$BUILD_DIR/mongo/db/auth/authserver",
+        "$BUILD_DIR/mongo/db/read_write_concern_defaults_mock",
+        "$BUILD_DIR/mongo/db/service_context_non_d",
+        "$BUILD_DIR/mongo/rpc/message",
+        "startup_initialization",
+    ],
+)

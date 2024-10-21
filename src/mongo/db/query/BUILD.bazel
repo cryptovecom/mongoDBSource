@@ -1,0 +1,617 @@
+load("//bazel:mongo_src_rules.bzl", "idl_generator", "mongo_cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(
+    glob([
+        "*.h",
+        "*.cpp",
+    ]),
+)
+
+# Shared mongod/mongos query code.
+mongo_cc_library(
+    name = "query_common",
+    srcs = [
+        "explain_common.cpp",
+        "find_common.cpp",
+    ],
+    hdrs = [
+        "explain_common.h",
+        "find.h",
+        "find_common.h",
+    ],
+    deps = [
+        ":common_query_enums_and_helpers",
+        ":query_planner",
+        ":query_request",
+        "//src/mongo/db:curop_failpoint_helpers",
+        "//src/mongo/db:server_base",
+        "//src/mongo/db/query/collation:collator_factory_icu",
+        "//src/mongo/db/query/collation:collator_icu",
+        "//src/mongo/db/query/datetime:init_timezone_data",
+        "//src/mongo/util:fail_point",
+    ],
+)
+
+mongo_cc_library(
+    name = "canonical_distinct",
+    srcs = [
+        "canonical_distinct.cpp",
+        "//src/mongo/db/pipeline:document_source_replace_root.h",
+    ],
+    hdrs = [
+        "canonical_distinct.h",
+    ],
+    deps = [
+        "//src/mongo/db:commands",
+        "//src/mongo/db:query_expressions",
+        "//src/mongo/db:server_base",
+    ],
+)
+
+mongo_cc_library(
+    name = "random_utils",
+    srcs = [
+        "random_utils.cpp",
+    ],
+    hdrs = [
+        "random_utils.h",
+    ],
+    deps = [
+        "//src/mongo:base",
+    ],
+)
+
+mongo_cc_library(
+    name = "substr_utils",
+    srcs = [
+        "substr_utils.cpp",
+    ],
+    hdrs = [
+        "substr_utils.h",
+    ],
+    deps = [
+        "//src/mongo:base",
+    ],
+)
+
+mongo_cc_library(
+    name = "query_index_bounds",
+    srcs = [
+        "index_bounds.cpp",
+        "index_entry.cpp",
+        "index_tag.cpp",
+        "interval.cpp",
+    ],
+    hdrs = [
+        "index_bounds.h",
+        "index_entry.h",
+        "index_tag.h",
+        "interval.h",
+    ],
+    deps = [
+        "//src/mongo:base",
+        "//src/mongo/db:query_expressions",
+    ],
+)
+
+mongo_cc_library(
+    name = "canonical_query",
+    srcs = [
+        "canonical_query.cpp",
+        "canonical_query_encoder.cpp",
+        "parsed_distinct_command.cpp",
+        "parsed_find_command.cpp",
+        "query_utils.cpp",
+        "//src/mongo/db/query/query_shape:count_cmd_shape.cpp",
+        "//src/mongo/db/query/query_shape:distinct_cmd_shape.cpp",
+        "//src/mongo/db/query/query_shape:find_cmd_shape.cpp",
+        "//src/mongo/db/query/query_stats:find_key.cpp",
+    ],
+    hdrs = [
+        "canonical_query.h",
+        "canonical_query_encoder.h",
+        "indexability.h",
+        "parsed_distinct_command.h",
+        "parsed_find_command.h",
+        "query_utils.h",
+        "//src/mongo/db/exec/sbe:match_path.h",
+        "//src/mongo/db/query/query_shape:count_cmd_shape.h",
+        "//src/mongo/db/query/query_shape:distinct_cmd_shape.h",
+        "//src/mongo/db/query/query_shape:find_cmd_shape.h",
+        "//src/mongo/db/query/query_stats:find_key.h",
+    ],
+    deps = [
+        ":canonical_distinct",
+        ":common_query_enums_and_helpers",
+        ":projection_ast",
+        ":sort_pattern",
+        "//src/mongo/crypto:encrypted_field_config",
+        "//src/mongo/db:query_expressions",
+        "//src/mongo/db/pipeline",
+        "//src/mongo/db/query/collation:collator_factory_interface",
+        "//src/mongo/db/query/collation:collator_interface",
+    ],
+)
+
+mongo_cc_library(
+    name = "memory_util",
+    srcs = [
+        "//src/mongo/db/query/util:memory_util.cpp",
+    ],
+    hdrs = [
+        "//src/mongo/db/query/util:memory_util.h",
+    ],
+    deps = [
+        "//src/mongo/util:pcre_wrapper",  # TODO(SERVER-93876): Remove.
+        "//src/mongo/util:processinfo",
+    ],
+)
+
+idl_generator(
+    name = "explain_verbosity_gen",
+    src = "explain_verbosity.idl",
+)
+
+mongo_cc_library(
+    name = "common_query_enums_and_helpers",
+    srcs = [
+        "allowed_contexts.cpp",
+        "analyze_regex.cpp",
+        "explain_options.cpp",
+        ":explain_verbosity_gen",
+    ],
+    hdrs = [
+        "allowed_contexts.h",
+        "analyze_regex.h",
+        "explain_options.h",
+    ],
+    deps = [
+        "//src/mongo/db:api_parameters",
+        "//src/mongo/db:server_base",
+        "//src/mongo/db:service_context",
+        "//src/mongo/transport:transport_layer_common",  # TODO(SERVER-93876): Remove.
+    ],
+)
+
+idl_generator(
+    name = "hint_gen",
+    src = "hint.idl",
+)
+
+idl_generator(
+    name = "find_command_gen",
+    src = "find_command.idl",
+    deps = [
+        ":hint_gen",
+        "//src/mongo/crypto:fle_field_schema_gen",
+        "//src/mongo/db:basic_types_gen",
+        "//src/mongo/db/auth:access_checks_gen",
+        "//src/mongo/db/auth:action_type_gen",
+        "//src/mongo/db/pipeline:legacy_runtime_constants_gen",
+        "//src/mongo/db/query/client_cursor:cursor_response_gen",
+        "//src/mongo/db/query/query_settings:query_settings_gen",
+        "//src/mongo/db/session:logical_session_id_gen",
+        "//src/mongo/idl:generic_argument_gen",
+    ],
+)
+
+idl_generator(
+    name = "index_hint_gen",
+    src = "index_hint.idl",
+    deps = [
+        "//src/mongo/db:basic_types_gen",
+    ],
+)
+
+idl_generator(
+    name = "query_knobs_gen",
+    src = "query_knobs.idl",
+    deps = [
+        "//src/mongo/db:basic_types_gen",
+        "//src/mongo/idl:cluster_server_parameter_gen",
+    ],
+)
+
+mongo_cc_library(
+    name = "projection_ast",
+    srcs = [
+        "projection.cpp",
+        "projection_ast_util.cpp",
+        "projection_parser.cpp",
+        "//src/mongo/base:exact_cast.h",
+        "//src/mongo/db/query:projection_ast_path_tracking_visitor.h",
+    ],
+    hdrs = [
+        "projection.h",
+        "projection_ast_util.h",
+        "projection_parser.h",
+    ],
+    deps = [
+        "//src/mongo/db:query_expressions",
+        "//src/mongo/db:server_base",
+    ],
+)
+
+mongo_cc_library(
+    name = "sort_pattern",
+    srcs = [
+        "sort_pattern.cpp",
+    ],
+    hdrs = [
+        "sort_pattern.h",
+    ],
+    deps = [
+        "//src/mongo:base",
+        "//src/mongo/db:query_expressions",  # TODO(SERVER-93876): Remove.
+        "//src/mongo/db/exec/document_value",
+    ],
+)
+
+mongo_cc_library(
+    name = "plan_yield_policy",
+    srcs = [
+        "plan_yield_policy.cpp",
+    ],
+    hdrs = [
+        "plan_yield_policy.h",
+    ],
+    deps = [
+        "//src/mongo:base",  # TODO(SERVER-93876): Remove.
+        "//src/mongo/db:shard_role",
+        "//src/mongo/db/catalog:collection_uuid_mismatch_info",
+        "//src/mongo/db/concurrency:exception_util",
+        "//src/mongo/db/storage:recovery_unit_base",  # TODO(SERVER-93876): Remove.
+        "//src/mongo/util:elapsed_tracker",
+        "//src/mongo/util:fail_point",  # TODO(SERVER-93876): Remove.
+    ],
+)
+
+mongo_cc_library(
+    name = "plan_executor",
+    srcs = [
+        "plan_executor.cpp",
+        "plan_yield_policy_remote_cursor.cpp",
+        "yield_policy_callbacks_impl.cpp",
+    ],
+    hdrs = [
+        "plan_executor.h",
+        "plan_yield_policy_remote_cursor.h",
+        "yield_policy_callbacks_impl.h",
+    ],
+    deps = [
+        ":plan_yield_policy",
+        ":query_common",
+        "//src/mongo/db:server_base",
+        "//src/mongo/db:shard_filterer",
+        "//src/mongo/db:shard_role",
+        "//src/mongo/db/catalog:collection_query_info",
+        "//src/mongo/db/catalog:database_holder",
+        "//src/mongo/db/collection_crud",
+        "//src/mongo/executor:task_executor_cursor",
+    ],
+)
+
+idl_generator(
+    name = "tailable_mode_gen",
+    src = "tailable_mode.idl",
+)
+
+idl_generator(
+    name = "query_feature_flags_gen",
+    src = "query_feature_flags.idl",
+)
+
+mongo_cc_library(
+    name = "spill_util",
+    srcs = [
+        "//src/mongo/db/query/util:spill_util.cpp",
+    ],
+    hdrs = [
+        "//src/mongo/db/query/util:spill_util.h",
+    ],
+    deps = [
+        ":query_knobs",
+        "//src/mongo/db/storage:disk_space_util",
+    ],
+)
+
+mongo_cc_library(
+    name = "query_knobs",
+    srcs = [
+        "explain_version_validator.cpp",
+        "framework_control.cpp",
+        "plan_ranker_mode.cpp",
+        "query_feature_flags_gen",
+        "query_knobs_gen",
+        "//src/mongo/db/query/plan_cache:sbe_plan_cache_on_parameter_change.cpp",
+        "//src/mongo/db/query/query_stats:query_stats_on_parameter_change.cpp",
+    ],
+    hdrs = [
+        "explain_version_validator.h",
+        "//src/mongo/db/query/plan_cache:sbe_plan_cache_on_parameter_change.h",
+        "//src/mongo/db/query/query_stats:query_stats_on_parameter_change.h",
+    ],
+    deps = [
+        ":memory_util",
+        "//src/mongo/db:server_base",
+        "//src/mongo/db:service_context",
+        "//src/mongo/db/commands:test_commands_enabled",  # TODO(SERVER-93876): Remove.
+        "//src/mongo/idl:cluster_server_parameter",
+        "//src/mongo/util:pcre_wrapper",  # TODO(SERVER-93876): Remove.
+    ],
+)
+
+mongo_cc_library(
+    name = "query_knob_configuration",
+    srcs = [
+        "query_knob_configuration.cpp",
+    ],
+    hdrs = [
+        "query_knob_configuration.h",
+    ],
+    deps = [
+        ":query_knobs",
+        "//src/mongo/db:mongohasher",  # TODO(SERVER-93876): Remove.
+        "//src/mongo/db:server_base",  # TODO(SERVER-93876): Remove.
+    ],
+)
+
+idl_generator(
+    name = "distinct_command_gen",
+    src = "distinct_command.idl",
+    deps = [
+        ":hint_gen",
+        "//src/mongo/db:basic_types_gen",
+        "//src/mongo/db/query/query_settings:query_settings_gen",
+        "//src/mongo/idl:generic_argument_gen",
+    ],
+)
+
+idl_generator(
+    name = "expression_index_knobs_gen",
+    src = "expression_index_knobs.idl",
+)
+
+mongo_cc_library(
+    name = "query_planner",
+    srcs = [
+        "distinct_access.cpp",
+        "expression_index.cpp",
+        "index_bounds_builder.cpp",
+        "interval_evaluation_tree.cpp",
+        "planner_access.cpp",
+        "planner_analysis.cpp",
+        "planner_ixselect.cpp",
+        "planner_wildcard_helpers.cpp",
+        "query_planner.cpp",
+        "query_planner_common.cpp",
+        "query_settings.cpp",
+        "query_solution.cpp",
+        "record_id_range.cpp",
+        "stage_types.cpp",
+        ":expression_index_knobs_gen",
+        "//src/mongo/db/query/plan_cache:plan_cache_indexability.cpp",
+        "//src/mongo/db/query/plan_enumerator:enumerator_memo.cpp",
+        "//src/mongo/db/query/plan_enumerator:memo_prune.cpp",
+        "//src/mongo/db/query/plan_enumerator:plan_enumerator.cpp",
+        "//src/mongo/db/query/util:set_util.h",
+        "//src/mongo/util:map_utils.h",
+    ],
+    hdrs = [
+        "distinct_access.h",
+        "expression_index.h",
+        "index_bounds_builder.h",
+        "interval_evaluation_tree.h",
+        "planner_access.h",
+        "planner_analysis.h",
+        "planner_ixselect.h",
+        "planner_wildcard_helpers.h",
+        "query_planner.h",
+        "query_planner_common.h",
+        "query_settings.h",
+        "query_solution.h",
+        "record_id_range.h",
+        "stage_types.h",
+        "//src/mongo/db/query/plan_cache:plan_cache_indexability.h",
+        "//src/mongo/db/query/plan_enumerator:enumerator_memo.h",
+        "//src/mongo/db/query/plan_enumerator:memo_prune.h",
+        "//src/mongo/db/query/plan_enumerator:plan_enumerator.h",
+    ],
+    deps = [
+        ":canonical_query",
+        ":query_index_bounds",
+        ":query_knobs",
+        "//src/mongo/db:query_expressions",
+        "//src/mongo/db:record_id_helpers",
+        "//src/mongo/db:server_base",
+        "//src/mongo/db/catalog:collection_options",
+        "//src/mongo/db/commands:server_status_core",
+        "//src/mongo/db/exec/sbe:query_sbe_plan_stats",
+        "//src/mongo/db/fts:base_fts",
+        "//src/mongo/db/index:expression_params",
+        "//src/mongo/db/index:index_access_method",
+        "//src/mongo/db/query/cost_based_ranker:qsn_estimator",
+        "//src/mongo/db/query/plan_cache:query_plan_cache",
+    ],
+)
+
+mongo_cc_library(
+    name = "bucket_predicate_generator",
+    srcs = [
+        "//src/mongo/db/query/timeseries:bucket_level_comparison_predicate_generator.cpp",
+        "//src/mongo/db/query/timeseries:bucket_level_id_predicate_generator.cpp",
+        "//src/mongo/db/query/timeseries:bucket_spec.cpp",
+    ],
+    hdrs = [
+        "//src/mongo/db/query/timeseries:bucket_level_comparison_predicate_generator.h",
+        "//src/mongo/db/query/timeseries:bucket_level_id_predicate_generator.h",
+        "//src/mongo/db/query/timeseries:bucket_spec.h",
+    ],
+    deps = [
+        "//src/mongo/bson/column",
+        "//src/mongo/db:query_expressions",
+        "//src/mongo/db/exec/document_value",
+        "//src/mongo/db/timeseries:timeseries_options",
+    ],
+)
+
+idl_generator(
+    name = "analyze_command_gen",
+    src = "analyze_command.idl",
+    deps = [
+        "//src/mongo/db:basic_types_gen",
+        "//src/mongo/db/auth:access_checks_gen",
+        "//src/mongo/db/auth:action_type_gen",
+        "//src/mongo/idl:generic_argument_gen",
+    ],
+)
+
+idl_generator(
+    name = "count_command_gen",
+    src = "count_command.idl",
+    deps = [
+        ":hint_gen",
+        "//src/mongo/crypto:fle_field_schema_gen",
+        "//src/mongo/db:basic_types_gen",
+        "//src/mongo/db/auth:access_checks_gen",
+        "//src/mongo/db/auth:action_type_gen",
+        "//src/mongo/idl:generic_argument_gen",
+    ],
+)
+
+mongo_cc_library(
+    name = "command_request_response",
+    srcs = [
+        "analyze_command_gen",
+        "count_command_as_aggregation_command.cpp",
+        "count_command_gen",
+        "count_request.cpp",
+        "view_response_formatter.cpp",
+        "//src/mongo/db/query/client_cursor:clientcursor.h",
+        "//src/mongo/db/query/client_cursor:cursor_id.h",
+        "//src/mongo/db/query/client_cursor:cursor_request.cpp",
+        "//src/mongo/db/query/client_cursor:cursor_response.cpp",
+        "//src/mongo/db/query/client_cursor:kill_cursors_gen",
+    ],
+    hdrs = [
+        "count_command_as_aggregation_command.h",
+        "count_request.h",
+        "view_response_formatter.h",
+        "//src/mongo/db/query/client_cursor:cursor_request.h",
+        "//src/mongo/db/query/client_cursor:cursor_response.h",
+    ],
+    deps = [
+        ":query_request",  # TODO(SERVER-93876): Remove.
+        "//src/mongo/bson/util:bson_extract",  # TODO(SERVER-93876): Remove.
+        "//src/mongo/db:common",  # TODO(SERVER-93876): Remove.
+        "//src/mongo/db:server_base",
+        "//src/mongo/db/query:hint_parser",
+        "//src/mongo/db/query/client_cursor:cursor_response_idl",
+        "//src/mongo/db/query/write_ops:write_ops_parsers",
+        "//src/mongo/db/repl:optime",  # TODO(SERVER-93876): Remove.
+        "//src/mongo/rpc",
+        "//src/mongo/rpc:command_status",  # TODO(SERVER-93876): Remove.
+    ],
+)
+
+idl_generator(
+    name = "getmore_command_gen",
+    src = "getmore_command.idl",
+    deps = [
+        "//src/mongo/db:basic_types_gen",
+        "//src/mongo/db/query/client_cursor:cursor_response_gen",
+        "//src/mongo/db/repl:replication_types_gen",
+        "//src/mongo/idl:generic_argument_gen",
+    ],
+)
+
+mongo_cc_library(
+    name = "query_request",
+    srcs = [
+        "distinct_command_gen",
+        "find_command_gen",
+        "getmore_command_gen",
+        "query_request_helper.cpp",
+        "tailable_mode.cpp",
+        "tailable_mode_gen",
+    ],
+    hdrs = [
+        "query_request_helper.h",
+        "tailable_mode.h",
+    ],
+    deps = [
+        ":hint_parser",
+        "//src/mongo/crypto:fle_fields",
+        "//src/mongo/db:api_parameters",  # TODO(SERVER-93876): Remove.
+        "//src/mongo/db:server_base",
+        "//src/mongo/db/auth:authprivilege",
+        "//src/mongo/db/auth:security_token_auth",  # TODO(SERVER-93876): Remove.
+        "//src/mongo/db/commands:test_commands_enabled",
+        "//src/mongo/db/pipeline:runtime_constants_idl",  # TODO(SERVER-93876): Remove.
+        "//src/mongo/db/query/client_cursor:cursor_response_idl",
+        "//src/mongo/db/query/query_settings",
+        "//src/mongo/db/repl:read_concern_args",  # TODO(SERVER-93876): Remove.
+        "//src/mongo/db/repl:repl_coordinator_interface",  # TODO(SERVER-93876): Remove.
+        "//src/mongo/s:common_s",
+    ],
+)
+
+mongo_cc_library(
+    name = "hint_parser",
+    srcs = [
+        "hint_parser.cpp",
+        ":hint_gen",
+    ],
+    hdrs = [
+        "hint_parser.h",
+        ":hint_gen",
+    ],
+    header_deps = [
+        "//src/mongo/db/concurrency:flow_control_ticketholder",
+    ],
+    deps = [
+        "//src/mongo:base",
+    ],
+)
+
+mongo_cc_library(
+    name = "str_trim_utils",
+    srcs = [
+        "str_trim_utils.cpp",
+    ],
+    hdrs = [
+        "//src/mongo/db/query:str_trim_utils.h",
+    ],
+    deps = [
+        "//src/mongo:base",
+    ],
+)
+
+mongo_cc_library(
+    name = "index_hint",
+    srcs = [
+        "index_hint.cpp",
+        ":index_hint_gen",
+    ],
+    header_deps = [
+        "//src/mongo/db/repl:oplog_buffer_batched_queue",
+    ],
+    deps = [
+        "//src/mongo/db:server_base",
+    ],
+)
+
+mongo_cc_library(
+    name = "map_reduce_output_format",
+    srcs = [
+        "map_reduce_output_format.cpp",
+    ],
+    hdrs = [
+        "map_reduce_output_format.h",
+    ],
+    deps = [
+        "//src/mongo/db:server_base",
+    ],
+)
