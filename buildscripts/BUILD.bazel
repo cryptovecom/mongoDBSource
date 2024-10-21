@@ -1,0 +1,16 @@
+load("@poetry//:dependencies.bzl", "dependency")
+
+py_binary(
+    name = "codeowners",
+    srcs = ["codeowners_generate.py"],
+    main = "codeowners_generate.py",
+    visibility = ["//visibility:public"],
+    deps = [
+        dependency(
+            "pyyaml",
+            group = "core",
+        ),
+    ],
+)
+
+exports_files(["cheetah_source_generator.py"])

@@ -1,0 +1,10 @@
+version: 1.0.0
+options:
+  no_parent_owners: true
+filters:
+  - "query_golden*":
+    approvers:
+      - 10gen/query-optimization
+  - "queryable_wt*":
+    approvers:
+      - 10gen/server-rss-sydney
