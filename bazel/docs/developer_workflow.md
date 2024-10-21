@@ -1,0 +1,111 @@
+# Bazel Developer Workflow
+
+This document describes the Server Developer workflow for modifying Bazel build definitions.
+
+# Creating a new BUILD.bazel file
+
+Similar to SCons, a build target is defined in the directory where its source code exists. To create a target that compiles **src/mongo/hello_world.cpp**, you would create **src/mongo/BUILD.bazel**.
+
+The Bazel equivalent of SConscript files are BUILD.bazel files.
+
+src/mongo/BUILD.bazel would contain:
+
+    mongo_cc_binary(
+        name = "hello_world",
+        srcs = [
+            "hello_world.cpp"
+        ],
+    }
+
+Once you've obtained bazel by running **python buildscripts/install_bazel.py**, you can then build this target via "bazel build":
+
+    bazel build //src/mongo:hello_world
+
+Or run this target via "bazel run":
+
+    bazel run //src/mongo:hello_world
+
+The full target name is a combination between the directory of the BUILD.bazel file and the target name:
+
+    //{BUILD.bazel dir}:{targetname}
+
+# Adding a New Header / Source File
+
+Bazel makes use of static analysis wherever possible to improve execution and querying speed. As part of this, source and header files must not be declared dynamically (ex. glob, wildcard, etc). Instead, you'll need to manually add a reference to each header or source file you add into your build target.
+
+The divergence from SCons is that now source files have to be declared in addition to header files.
+
+    mongo_cc_binary(
+        name = "hello_world",
+        srcs = [
+            "hello_world.cpp",
+            "new_source.cpp" # If adding a source file
+        ],
+        hdrs = [
+            "new_header.h" # If adding a header file
+        ],
+    }
+
+## Adding a New Library
+
+The DevProd Build Team created MongoDB-specific macros for the different types of build targets you may want to specify. These include:
+
+- mongo_cc_binary
+- mongo_cc_library
+- idl_generator
+
+Creating a new library is similar to the steps above for creating a new binary. A new **mongo_cc_library** definition would be created in the BUILD.bazel file.
+
+    mongo_cc_library(
+        name = "new_library",
+        srcs = [
+            "new_library_source_file.cpp"
+        ]
+    }
+
+## Declaring Dependencies
+
+If a library or binary depends on another library, this must be declared in the **deps** section of the target. The syntax for referring to the library is the same syntax used in the bazel build/run command.
+
+    mongo_cc_library(
+        name = "new_library",
+        # ...
+    }
+
+    mongo_cc_binary(
+        name = "hello_world",
+        srcs = [
+            "hello_world.cpp",
+        ],
+        deps = [
+            ":new_library", # if referring to the library declared in the same directory as this build file
+            # "//src/mongo:new_library" # absolute path
+            # "sub_directory:new_library" # relative path of a subdirectory
+        ],
+    }
+
+## Depending on a Bazel Library in a SCons Build Target
+
+During migration from SCons to Bazel, the Build Team has created an integration layer between the two while working towards converting all SCons targets to Bazel targets.
+
+Targets which are built by bazel will be labeled as ThinTarget builder types. You can reference them by the same name you would use in scons in LIBDEPS lists.
+
+If adding a a new library to the build, check to see if it should be added as a bazel or scons library. This will depend on how deep it is in the dependency tree. You can ask the build team at #ask-devprod-build for advice on if a given library should be added to the bazel or scons part of the build.
+
+## Running clang-tidy via Bazel
+
+Note: This feature is still in development; see https://jira.mongodb.org/browse/SERVER-80396 for details)
+
+To run clang-tidy via Bazel, do the following:
+
+1. To analyze all code, run `bazel build --config=clang-tidy src/...`
+2. To analyze a single target (e.g.: `fsync_locked`), run the following command (note that `_with_debug` suffix on the target): `bazel build --config=clang-tidy src/mongo/db/commands:fsync_locked_with_debug`
+
+Testing notes:
+
+- If you want to test whether clang-tidy is in fact finding bugs, you can inject the following code into a `cpp` file to generate a `bugprone-incorrect-roundings` warning:
+
+```
+const double f = 1.0;
+const int foo = (int)(f + 0.5);
+```
