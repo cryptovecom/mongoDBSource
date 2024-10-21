@@ -1,0 +1,50 @@
+load("@npm//:defs.bzl", "npm_link_all_packages")
+load("@hedron_compile_commands//:refresh_compile_commands.bzl", "refresh_compile_commands")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "pyproject.toml",
+    "poetry.lock",
+    "symbols.orderfile",
+])
+
+npm_link_all_packages(name = "node_modules")
+
+alias(
+    name = "format",
+    actual = "//bazel/format",
+)
+
+alias(
+    name = "codeowners",
+    actual = "//buildscripts:codeowners",
+)
+
+# This rule makes it possible to set the clang-tidy configuration setting:
+genrule(
+    name = "clang_tidy_config",
+    srcs = [
+        ".clang-tidy.in",
+    ],
+    outs = [".clang-tidy"],
+
+    # Note: we use sed to substitute the known good value `build/compiledb/mongo`; testing
+    # has confirmed that this is the correct value.
+    cmd = """
+    cp $(location .clang-tidy.in) $@ && \
+    sed -i 's|@MONGO_BUILD_DIR@|$(RULEDIR)/src/mongo|g' $@
+    """,
+    visibility = ["//visibility:public"],
+)
+
+load("@hedron_compile_commands//:refresh_compile_commands.bzl", "refresh_compile_commands")
+
+refresh_compile_commands(
+    name = "compiledb",
+    exclude_external_sources = True,
+    exclude_headers = "all",  # not using "all" adds headers as sources to compile_commands.json which is never what we want
+    targets = {
+        "//src/...": "",
+    },
+)
