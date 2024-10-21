@@ -1,0 +1,16 @@
+# Query related google micro-benchmarks unless run in separate dedicated suites.
+test_kind: benchmark_test
+
+selector:
+  root: build/benchmarks.txt
+  include_files:
+    # The trailing asterisk is for handling the .exe extension on Windows.
+    - build/install/bin/query_bm*
+    - build/install/bin/query_nond_bm*
+    - build/install/bin/point_query_bm*
+    - build/install/bin/plan_cache_classic_bm*
+
+executor:
+  config: {}
+  hooks:
+    - class: GenerateAndCheckPerfResults

@@ -1,0 +1,15 @@
+# This benchmark measures the cost of running the command execution path.
+test_kind: benchmark_test
+
+selector:
+  root: build/benchmarks.txt
+  include_files:
+    # The trailing asterisk is for handling the .exe extension on Windows.
+    - build/install/bin/service_entry_point_shard_role_bm*
+    - build/install/bin/service_entry_point_router_role_bm*
+
+executor:
+  config: {}
+  hooks:
+    - class: GenerateAndCheckPerfResults
+      check_result: True
